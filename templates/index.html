@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Probability Engine</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Poker Probability Engine</h1>
+            <p>GTO-based decision recommendations for Texas Hold'em</p>
+        </header>
+
+        <div class="card-form">
+            <form id="pokerForm">
+                <div class="form-section">
+                    <label for="holeCards">Hole Cards <span class="required">*</span></label>
+                    <div class="input-with-helper">
+                        <input type="text" id="holeCards" name="holeCards" placeholder="e.g., Ah Ks" required>
+                        <div class="helper-text">Format: Rank + Suit (A, K, Q, J, T, 9-2) + (h, s, d, c)</div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label for="communityCards">Community Cards</label>
+                    <div class="input-with-helper">
+                        <input type="text" id="communityCards" name="communityCards" placeholder="e.g., Qh Jh Td">
+                        <div class="helper-text">Leave empty for pre-flop. Format: Rank + Suit</div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label for="stacks">Chip Stacks <span class="required">*</span></label>
+                    <div class="input-with-helper">
+                        <input type="text" id="stacks" name="stacks" placeholder="e.g., 1000 1200 800 1500 1300" required>
+                        <div class="helper-text">Enter 5 values for all players</div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label for="positions">Positions <span class="required">*</span></label>
+                    <div class="input-with-helper">
+                        <input type="text" id="positions" name="positions" placeholder="e.g., utg mp co btn sb" required>
+                        <div class="helper-text">Valid: utg, utg+1, mp, mp+1, hj, co, btn, sb, bb</div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label for="potSize">Pot Size <span class="required">*</span></label>
+                    <input type="number" id="potSize" name="potSize" placeholder="e.g., 300" required>
+                </div>
+
+                <div class="form-section">
+                    <label for="facingBet">Facing Bet</label>
+                    <input type="number" id="facingBet" name="facingBet" placeholder="e.g., 150">
+                </div>
+
+                <div class="form-section">
+                    <label for="minRaise">Minimum Raise</label>
+                    <input type="number" id="minRaise" name="minRaise" placeholder="e.g., 300">
+                </div>
+
+                <div class="form-section">
+                    <label for="simulations">Simulations</label>
+                    <div class="input-with-helper">
+                        <input type="number" id="simulations" name="simulations" placeholder="5000" value="5000">
+                        <div class="helper-text">More simulations = better accuracy, but slower</div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" id="analyzeButton">
+                        <i class="fas fa-calculator"></i> Analyze Hand
+                    </button>
+                    <button type="button" id="clearButton">
+                        <i class="fas fa-broom"></i> Clear All
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="card-result" id="resultCard" style="display: none;">
+            <div class="spinner" id="loadingSpinner">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+            </div>
+            
+            <div id="resultContent" style="display: none;">
+                <h2>GTO Recommendation</h2>
+                <div class="result-details">
+                    <div class="result-stage">
+                        <span class="label">Stage:</span>
+                        <span id="gameStage" class="value"></span>
+                    </div>
+                    <div class="result-action">
+                        <span class="label">Action:</span>
+                        <span id="recommendedAction" class="value"></span>
+                    </div>
+                    <div class="result-info">
+                        <span class="label">Simulations:</span>
+                        <span id="simulationCount" class="value"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="errorContent" style="display: none;">
+                <h2>Error</h2>
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+        </div>
+
+        <div class="card-reference">
+            <h3>Quick Reference</h3>
+            <div class="reference-section">
+                <h4>Card Format</h4>
+                <p>Each card is represented by a rank followed by a suit:</p>
+                <ul>
+                    <li><strong>Ranks:</strong> A (Ace), K (King), Q (Queen), J (Jack), T (Ten), 9, 8, 7, 6, 5, 4, 3, 2</li>
+                    <li><strong>Suits:</strong> h (Hearts), s (Spades), d (Diamonds), c (Clubs)</li>
+                    <li><strong>Examples:</strong> Ah = Ace of hearts, Td = Ten of diamonds, 2c = Two of clubs</li>
+                </ul>
+            </div>
+            
+            <div class="reference-section">
+                <h4>Position Abbreviations</h4>
+                <ul>
+                    <li><strong>utg:</strong> Under the Gun (first to act pre-flop)</li>
+                    <li><strong>utg+1:</strong> Under the Gun+1</li>
+                    <li><strong>mp:</strong> Middle Position</li>
+                    <li><strong>mp+1:</strong> Middle Position+1</li>
+                    <li><strong>hj:</strong> Hijack</li>
+                    <li><strong>co:</strong> Cutoff</li>
+                    <li><strong>btn:</strong> Button</li>
+                    <li><strong>sb:</strong> Small Blind</li>
+                    <li><strong>bb:</strong> Big Blind</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Poker Probability Engine | <a href="https://github.com/your-username/prob-engine" target="_blank">GitHub</a></p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
