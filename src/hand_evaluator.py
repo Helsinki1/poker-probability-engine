@@ -2,7 +2,6 @@ from itertools import combinations
 from src.card import Card
 
 class HandEvaluator:
-    """Evaluates poker hands."""
     
     # Hand rankings from highest to lowest
     HAND_RANKINGS = [
@@ -32,6 +31,7 @@ class HandEvaluator:
         
         return best_hand, best_hand_value
     
+    
     @staticmethod
     def _evaluate_five_card_hand(hand):
         """Evaluate a 5-card poker hand."""
@@ -41,60 +41,70 @@ class HandEvaluator:
         rank_counts = {}
         
         for rank in ranks:
-            if rank in rank_counts:
-                rank_counts[rank] += 1
-            else:
-                rank_counts[rank] = 1
+            rank_counts[rank] = rank_counts.get(rank, 0) + 1
         
-        # Check for straight flush
-        if len(set(suits)) == 1 and HandEvaluator._is_straight(rank_values):
-            return 9000 + max(rank_values)
+        # Sort rank values descending for straight checks
+        sorted_values = sorted(rank_values, reverse=True)
+        is_flush = len(set(suits)) == 1
         
-        # Check for four of a kind
+        # Check for straight (including ace-low)
+        is_straight = False
+        if len(set(sorted_values)) == 5:
+            if sorted_values[0] - sorted_values[4] == 4:
+                is_straight = True
+            elif sorted_values == [12, 3, 2, 1, 0]:  # Ace-low straight (5-4-3-2-A)
+                is_straight = True
+                sorted_values = [3, 2, 1, 0, -1]  # Treat ace as low for scoring
+        
+        # Straight flush (including royal flush)
+        if is_straight and is_flush:
+            return 8000000 + sorted_values[0] * 10000
+        
+        # Four of a kind
         if 4 in rank_counts.values():
-            four_rank = next(r for r, count in rank_counts.items() if count == 4)
-            kicker = next(r for r in ranks if r != four_rank)
-            return 8000 + Card.RANKS.index(four_rank) * 20 + Card.RANKS.index(kicker)
+            four_rank_value = next(card.rank_value for card in hand 
+                                if ranks.count(card.rank) == 4)
+            kicker_value = next(card.rank_value for card in hand 
+                            if ranks.count(card.rank) != 4)
+            return 7000000 + four_rank_value * 10000 + kicker_value
         
-        # Check for full house
-        if 3 in rank_counts.values() and 2 in rank_counts.values():
-            three_rank = next(r for r, count in rank_counts.items() if count == 3)
-            two_rank = next(r for r, count in rank_counts.items() if count == 2)
-            return 7000 + Card.RANKS.index(three_rank) * 20 + Card.RANKS.index(two_rank)
+        # Full house
+        if sorted(rank_counts.values()) == [2, 3]:
+            three_rank_value = next(card.rank_value for card in hand 
+                                if ranks.count(card.rank) == 3)
+            two_rank_value = next(card.rank_value for card in hand 
+                                if ranks.count(card.rank) == 2)
+            return 6000000 + three_rank_value * 10000 + two_rank_value * 100
         
-        # Check for flush
-        if len(set(suits)) == 1:
-            return 6000 + sum(Card.RANKS.index(r) for r in ranks)
+        # Flush
+        if is_flush:
+            return 5000000 + sum(v * (10 ** (4 - i)) 
+                                for i, v in enumerate(sorted_values))
         
-        # Check for straight
-        if HandEvaluator._is_straight(rank_values):
-            return 5000 + max(rank_values)
+        # Straight
+        if is_straight:
+            return 4000000 + sorted_values[0] * 10000
         
-        # Check for three of a kind
+        # Three of a kind
         if 3 in rank_counts.values():
-            three_rank = next(r for r, count in rank_counts.items() if count == 3)
-            kickers = sorted([Card.RANKS.index(r) for r in ranks if r != three_rank], reverse=True)
-            return 4000 + Card.RANKS.index(three_rank) * 400 + kickers[0] * 20 + kickers[1]
+            three_rank_value = next(card.rank_value for card in hand 
+                                if ranks.count(card.rank) == 3)
+            kickers = sorted([v for v in sorted_values if v != three_rank_value], reverse=True)
+            return 3000000 + three_rank_value * 10000 + kickers[0] * 100 + kickers[1]
         
-        # Check for two pair
+        # Two pair
         if list(rank_counts.values()).count(2) == 2:
-            pairs = sorted([Card.RANKS.index(r) for r, count in rank_counts.items() if count == 2], reverse=True)
-            kicker = next(Card.RANKS.index(r) for r, count in rank_counts.items() if count == 1)
-            return 3000 + pairs[0] * 400 + pairs[1] * 20 + kicker
+            pairs = sorted([v for v in set(rank_values) 
+                        if rank_values.count(v) == 2], reverse=True)
+            kicker = next(v for v in sorted_values if v not in pairs)
+            return 2000000 + pairs[0] * 10000 + pairs[1] * 100 + kicker
         
-        # Check for one pair
+        # One pair
         if 2 in rank_counts.values():
-            pair_rank = next(r for r, count in rank_counts.items() if count == 2)
-            kickers = sorted([Card.RANKS.index(r) for r in ranks if r != pair_rank], reverse=True)
-            return 2000 + Card.RANKS.index(pair_rank) * 1000 + kickers[0] * 100 + kickers[1] * 10 + kickers[2]
+            pair_value = next(v for v in set(rank_values) 
+                            if rank_values.count(v) == 2)
+            kickers = sorted([v for v in sorted_values if v != pair_value], reverse=True)
+            return 1000000 + pair_value * 10000 + kickers[0] * 100 + kickers[1] * 10 + kickers[2]
         
         # High card
-        sorted_values = sorted(rank_values, reverse=True)
-        return 1000 + sorted_values[0] * 1000 + sorted_values[1] * 100 + sorted_values[2] * 10 + sorted_values[3] * 1 + sorted_values[4] * 0.1
-    
-    @staticmethod
-    def _is_straight(rank_values):
-        """Check if the hand is a straight."""
-        sorted_values = sorted(rank_values)
-        return (len(set(sorted_values)) == 5 and max(sorted_values) - min(sorted_values) == 4) or \
-               (sorted_values == [0, 1, 2, 3, 12])  # A-2-3-4-5 straight
+        return sum(v * (10 ** (4 - i)) for i, v in enumerate(sorted_values))

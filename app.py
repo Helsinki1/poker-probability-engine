@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify
 import json
 from src.card import Card
 from src.poker_engine import PokerEngine
+from arduino_msg import send_to_arduino
+import os
 
 app = Flask(__name__)
 
@@ -69,6 +71,10 @@ def analyze():
             stage = "River"
         else:
             stage = "Unknown"
+
+        # SEND TO ARDUINO, which will print to LCD board
+        send_to_arduino(recommendation, "/dev/ttyACM0", 9600)
+        
         
         return jsonify({
             "recommendation": recommendation,
